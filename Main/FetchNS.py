@@ -1,6 +1,5 @@
 import requests
 import xmltodict
-from xml.etree import ElementTree as ET
 
 
 writefile = open("dump.xml", "w")
@@ -67,4 +66,3 @@ def getStoringenWerkzaamheden(station):
 
 
 print(getStoringenWerkzaamheden("ut"))
-
