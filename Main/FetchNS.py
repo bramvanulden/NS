@@ -20,7 +20,7 @@ def getVertrektijden(station):
         vertrekspoorStr = vertrek["VertrekSpoor"]
         vertrekspoor = vertrekspoorStr.get("#text")
 
-        # IN DICTIONARY:
+        # IN LIST:
         #   vertrekTijd  = 0
         #   ritnummer    = 1
         #   treinsoort   = 2
@@ -35,34 +35,62 @@ def getStoringenWerkzaamheden(station):
     wanneer = ""
     oorzaak = ""
     advies = ""
-    nieuwedienstregeling = ""
     extrareistijd = ""
-    i = 0
+    toDelete = ["<p>", "</p>", "<b>", "</b>", "<br>", "<br/>"]
     api_station = "http://webservices.ns.nl/ns-api-storingen?station={0}".format(station)
     response_station = requests.get(api_station, auth=auth_details)
     StoWernXML = xmltodict.parse(response_station.text)
     for werkzaamheed in StoWernXML["Storingen"]["Gepland"]["Storing"]:
         traject = werkzaamheed["Traject"]
-        periode = werkzaamheed["Periode"]
-        bericht = werkzaamheed["Bericht"]
 
         with open("dump.xml", "w") as myXMLFile:
             myXMLFile.write(werkzaamheed["Bericht"])
 
         for line in readfile:
-            i += 1
+            for string in toDelete:
+                line = line.replace(string, "")
+            writefile.write(line)
             if "Wanneer:" in line:
-                wanneer = line[11:-10]
+                wanneer = line
             if "Oorzaak" in line:
-                oorzaak = line[11:-10]
+                oorzaak = line
             if "Advies" in line:
-                advies = line[10:-5]
-            if i == 5:
-                nieuwedienstregeling = line[5:]
+                advies = line
             if "Extra reistijd:" in line:
-                extrareistijd = line[20:-10]
+                extrareistijd = line
 
-        d[traject] = [periode, bericht, wanneer, oorzaak, advies, nieuwedienstregeling, extrareistijd]
+        # IN LIST:
+        #   wanneer         = 0
+        #   oorzaak         = 1
+        #   advies          = 2
+        #   extrareistijd   = 3
 
+        d[traject] = [wanneer, oorzaak, advies, extrareistijd]
+    return d
 
-print(getStoringenWerkzaamheden("ut"))
+def getReisadvies(vanstation, naarstation):
+    d = {}
+    api_station = "http://webservices.ns.nl/ns-api-treinplanner?fromStation={0}&toStation={1}&departure=true".format(vanstation, naarstation)
+    response_station = requests.get(api_station, auth=auth_details)
+    vertrektijdenXML = xmltodict.parse(response_station.text)
+    for mogelijkheid in vertrektijdenXML["ReisMogelijkheden"]["ReisMogelijkheid"]:
+        overstappen = mogelijkheid["AantalOverstappen"]
+        reistijd = mogelijkheid["GeplandeReisTijd"]
+        vertrekStr = mogelijkheid["ActueleVertrekTijd"]
+        vertrektijd = vertrekStr[11:16]
+        aankomstStr = mogelijkheid["ActueleAankomstTijd"]
+        aankomst = aankomstStr[11:16]
+        treinsoort = mogelijkheid["ReisDeel"]["VervoerType"]
+        vertrekspoor = mogelijkheid["ReisDeel"]["ReisStop"][0]["Spoor"].get("#text")
+
+        # IN LIST:
+        #   overstappen     = 0
+        #   reistijd        = 1
+        #   aankomst        = 2
+        #   treinsoort      = 3
+        #   vertrekspoor    = 4
+        #   vertrektijd     = 5
+
+        d[vertrektijd] = [overstappen, reistijd, aankomst, treinsoort, vertrekspoor, vertrektijd]
+    return d
+
